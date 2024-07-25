@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     fd_set inFds; 
     struct termios orig_termios;
     char *slave_name;
-
+    
     if (argc > 2) {
         const char *usage = "Usage: ft_script outputfile\n";
         write(2, usage, ft_strlen(usage));
@@ -49,6 +49,12 @@ int main(int argc, char **argv) {
     }
     if (tcgetattr(0, &orig_termios) == -1)
         handle_error("tcgetattr");
+    int cols, lines;
+    struct winsize ws;
+    if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) == -1)
+        handle_error("ioctl TIOCGWINSZ");
+    cols = ws.ws_col;
+    lines = ws.ws_row;
     master_fd = open("/dev/ptmx", O_RDWR);
     if (master_fd == -1) {
         handle_error("posix_openpt");
@@ -96,8 +102,30 @@ int main(int argc, char **argv) {
     } 
     else
     {
+        ft_putstr_fd("Script started, output file is ", 1);
+        ft_putstr_fd((argc > 1) ? argv[1] : "typescript", 1);
+        ft_putstr_fd("\n", 1);
         ttySetRaw(&orig_termios);
+        write(output_fd, "Script started on ", 18);
+        time_t t = time(NULL);
+        char *timestamp = ctime(&t);
+        write(output_fd, timestamp, ft_strlen(timestamp) - 1);
+        char *tty_name = ttyname(slave_fd);
         close(slave_fd);
+        char *term = getenv("TERM");
+        write(output_fd, " [TERM=\"", 8);
+        write(output_fd, term, ft_strlen(term));
+        write(output_fd, "\" TTY=", 6);
+        write(output_fd, tty_name, ft_strlen(tty_name));
+        write(output_fd, "\" COLUMNS=", 10);
+        char *cols_str = ft_itoa(cols);
+        write(output_fd, cols_str, ft_strlen(cols_str));
+        free(cols_str);
+        write(output_fd, " LINES=", 7);
+        char *lines_str = ft_itoa(lines);
+        write(output_fd, lines_str, ft_strlen(lines_str));
+        free(lines_str);
+        write(output_fd, "]\n", 2);
         for (;;)
         {
             FD_ZERO(&inFds);
@@ -130,11 +158,10 @@ int main(int argc, char **argv) {
         int status;
         waitpid(child_pid, &status, 0);
         write(output_fd, "Script done on ", 12);
-        time_t t = time(NULL);
+        t = time(NULL);
         struct tm *tm = localtime(&t);
-        char timestamp[20];
         strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S%z", tm);
-        write(output_fd, timestamp, ft_strlen(timestamp));
+        write(output_fd, timestamp, ft_strlen(timestamp) - 1);
         write(output_fd, " [COMMAND_EXIT_CODE=", 20);
         char *command_exit_code_str;
         if (WIFEXITED(status))
