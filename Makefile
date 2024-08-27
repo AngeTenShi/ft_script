@@ -10,7 +10,7 @@ INC			=	-I ./libft -I ./includes
 LIB			=	-L ./libft -lft
 SRCS_DIR	=	srcs
 OBJS_DIR	=	objs
-SRCS			=	main.c
+SRCS			=	main.c utils.c output.c
 
 OBJS		=	$(SRCS:%.c=$(OBJS_DIR)/%.o)
 
